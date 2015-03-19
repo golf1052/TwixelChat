@@ -30,10 +30,26 @@ namespace TwixelChat
         public event EventHandler<MessageRecievedEventArgs> RawServerMessageRecieved;
         public event EventHandler<MessageRecievedEventArgs> RawMessageRecieved;
         public event EventHandler<MessageRecievedEventArgs> MessageRecieved;
-        public event EventHandler LoggedIn;
+        public event EventHandler<LoggedInEventArgs> LoggedInStateChanged;
 
         public ConnectionStates ConnectionState { get; protected internal set; }
-        public LoggedInStates LoggedInState { get; protected internal set; }
+        private LoggedInStates loggedInState;
+        public LoggedInStates LoggedInState
+        {
+            get
+            {
+                return loggedInState;
+            }
+            protected internal set
+            {
+                if (loggedInState != value)
+                {
+                    loggedInState = value;
+                    LoggedInStateChangedEvent(LoggedInState, LoggedInStateChanged);
+                }
+                loggedInState = value;
+            }
+        }
         public StreamReader Reader { get; protected internal set; }
         public StreamWriter Writer { get; protected internal set; }
         public string Channel { get; private set; }
@@ -107,12 +123,19 @@ namespace TwixelChat
         {
             MessageRecievedEventArgs messageEvent = new MessageRecievedEventArgs();
             messageEvent.Message = message;
-            OnMessageRecieved(messageEvent, handler);
+            Event(messageEvent, handler);
         }
 
-        protected virtual void OnMessageRecieved(MessageRecievedEventArgs e, EventHandler<MessageRecievedEventArgs> h)
+        void LoggedInStateChangedEvent(LoggedInStates state, EventHandler<LoggedInEventArgs> handler)
         {
-            EventHandler<MessageRecievedEventArgs> handler = h;
+            LoggedInEventArgs loggedInEvent = new LoggedInEventArgs();
+            loggedInEvent.State = state;
+            Event(loggedInEvent, handler);
+        }
+
+        protected virtual void Event<T>(T e, EventHandler<T> h)
+        {
+            EventHandler<T> handler = h;
             if (handler != null)
             {
                 handler(this, e);
@@ -171,7 +194,6 @@ namespace TwixelChat
                 // RPL_ENDOFMOTD
                 // Reply: End of message of the day
                 LoggedInState = LoggedInStates.LoggedIn;
-                EmptyEvent(EventArgs.Empty, LoggedIn);
             }
         }
 
