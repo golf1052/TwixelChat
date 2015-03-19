@@ -16,13 +16,11 @@ namespace TwixelChat.Full
         CancellationTokenSource readTaskCancellationSource;
         CancellationToken readTaskCancellationToken;
 
-        public Client(string channel) : base(channel)
+        public Client() : base()
         {
-            ConnectionState = ConnectionStates.Disconnected;
-            LoggedInState = LoggedInStates.LoggedOut;
         }
 
-        public override async Task Connect(string name, string accessToken)
+        public override async Task Connect(string name, string accessToken, long timeOutTime = 0)
         {
             client = new TcpClient(TwitchChatConstants.TwitchServer, TwitchChatConstants.TwitchPort);
             ConnectionState = ConnectionStates.Connected;
@@ -34,22 +32,16 @@ namespace TwixelChat.Full
             readTaskCancellationSource = new CancellationTokenSource();
             readTaskCancellationToken = readTaskCancellationSource.Token;
             readTask = Task.Factory.StartNew(() => ReadFromStream(readTaskCancellationToken), readTaskCancellationToken);
-            await Login(name, accessToken);
+            await Login(name, accessToken, timeOutTime);
         }
 
         public override void Disconnect()
         {
             readTaskCancellationSource.Cancel();
-            Task.WaitAny(new Task[]{readTask}, TimeSpan.FromSeconds(5));
+            Task.WaitAny(new Task[]{readTask}, TimeSpan.FromMilliseconds(500));
             client.Close();
             LoggedInState = LoggedInStates.LoggedOut;
             ConnectionState = ConnectionStates.Disconnected;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            client.Close();
-            base.Dispose(disposing);
         }
     }
 }

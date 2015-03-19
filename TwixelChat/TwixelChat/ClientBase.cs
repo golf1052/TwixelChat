@@ -10,10 +10,8 @@ using TwixelChat.Constants;
 
 namespace TwixelChat
 {
-    public abstract class ClientBase : IDisposable
+    public abstract class ClientBase
     {
-        private bool disposed = false;
-
         public enum ConnectionStates
         {
             Disconnected,
@@ -27,11 +25,18 @@ namespace TwixelChat
             LoggedOut
         }
 
+        public enum ChannelStates
+        {
+            InChannel,
+            NotInChannel
+        }
+
         public event EventHandler<MessageRecievedEventArgs> RawServerMessageRecieved;
         public event EventHandler<MessageRecievedEventArgs> RawMessageRecieved;
         public event EventHandler<MessageRecievedEventArgs> MessageRecieved;
         public event EventHandler<LoggedInEventArgs> LoggedInStateChanged;
 
+        public ChannelStates ChannelState { get; protected internal set; }
         public ConnectionStates ConnectionState { get; protected internal set; }
         private LoggedInStates loggedInState;
         public LoggedInStates LoggedInState
@@ -52,26 +57,74 @@ namespace TwixelChat
         }
         public StreamReader Reader { get; protected internal set; }
         public StreamWriter Writer { get; protected internal set; }
-        public string Channel { get; private set; }
+        public string Channel { get; protected internal set; }
 
-        public ClientBase(string channel)
+        private TimeSpan timer;
+        private long defaultTimeOutTime = 5000;
+        public long TimeOutTime { get; set; }
+        private int delayTime = 100;
+
+        public ClientBase()
         {
-            this.Channel = channel;
             this.ConnectionState = ConnectionStates.Disconnected;
+            this.loggedInState = LoggedInStates.LoggedOut;
+            this.ChannelState = ChannelStates.NotInChannel;
+            timer = TimeSpan.Zero;
+            TimeOutTime = defaultTimeOutTime;
         }
 
-        public abstract Task Connect(string name, string accessToken);
+        public abstract Task Connect(string name, string accessToken, long timeOutTime = 0);
         public abstract void Disconnect();
 
-        protected async Task Login(string name, string accessToken)
+        protected async Task Login(string name, string accessToken, long timeOutTime = 0)
         {
-            await SendMessage("PASS oauth:" + accessToken);
-            await SendMessage("NICK " + name);
+            if (timeOutTime <= 0)
+            {
+                timeOutTime = TimeOutTime;
+            }
+            ResetTimer();
+            await SendRawMessage("PASS oauth:" + accessToken);
+            await SendRawMessage("NICK " + name);
+            while (LoggedInState != LoggedInStates.LoggedIn)
+            {
+                await Task.Delay(delayTime);
+                timer += TimeSpan.FromMilliseconds(delayTime);
+                if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
+                {
+                    return;
+                }
+            }
+        }
+
+        public async Task JoinChannel(string channel)
+        {
+            ResetTimer();
+            Channel = channel;
+            await SendRawMessage("JOIN #" + channel);
+            while (ChannelState != ChannelStates.InChannel)
+            {
+                await Task.Delay(delayTime);
+                timer += TimeSpan.FromMilliseconds(delayTime);
+                if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
+                {
+                    return;
+                }
+            }
+        }
+
+        void ResetTimer()
+        {
+            timer = TimeSpan.Zero;
+        }
+
+        public async Task SendRawMessage(string message)
+        {
+            await Writer.WriteLineAsync(message);
         }
 
         public async Task SendMessage(string message)
         {
-            await Writer.WriteLineAsync (message);
+            await Writer.WriteLineAsync("PRIVMSG #" + Channel + " :" + message);
         }
 
         protected async Task ReadFromStream(CancellationToken cancellationToken)
@@ -107,15 +160,16 @@ namespace TwixelChat
                 string[] firstSplit = firstPart.Split(' ');
                 if (firstPart.StartsWith(":"))
                 {
+                    HandleReplyNumber(firstSplit[1]);
                     if (firstSplit[0].Substring(1) == TwitchChatConstants.TwitchHost)
                     {
-                        HandleReplyNumber(firstSplit[1]);
+                        
                     }
                 }
             }
             if (message.StartsWith("PING"))
             {
-                await SendMessage("PONG " + TwitchChatConstants.TwitchHost);
+                await SendRawMessage("PONG " + TwitchChatConstants.TwitchHost);
             }
         }
 
@@ -178,6 +232,7 @@ namespace TwixelChat
             {
                 // RPL_ENDOFNAMES
                 // Reply: End of /NAMES list
+                ChannelState = ChannelStates.InChannel;
             }
             else if (number == "372")
             {
@@ -195,30 +250,6 @@ namespace TwixelChat
                 // Reply: End of message of the day
                 LoggedInState = LoggedInStates.LoggedIn;
             }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposed)
-            {
-                if (disposing)
-                {
-                    Reader.Dispose();
-                    Writer.Dispose();
-                }
-                disposed = true;
-            }
-        }
-
-        ~ClientBase()
-        {
-            Dispose(false);
         }
     }
 }
