@@ -35,6 +35,7 @@ namespace TwixelChat
         public event EventHandler<MessageRecievedEventArgs> RawMessageRecieved;
         public event EventHandler<MessageRecievedEventArgs> MessageRecieved;
         public event EventHandler<LoggedInEventArgs> LoggedInStateChanged;
+        public event EventHandler LogInFailed;
 
         public ChannelStates ChannelState { get; protected internal set; }
         public ConnectionStates ConnectionState { get; protected internal set; }
@@ -64,6 +65,8 @@ namespace TwixelChat
         public long TimeOutTime { get; set; }
         private int delayTime = 100;
 
+        private bool loginFailed;
+
         public ClientBase()
         {
             this.ConnectionState = ConnectionStates.Disconnected;
@@ -71,6 +74,8 @@ namespace TwixelChat
             this.ChannelState = ChannelStates.NotInChannel;
             timer = TimeSpan.Zero;
             TimeOutTime = defaultTimeOutTime;
+
+            loginFailed = false;
         }
 
         public abstract Task Connect(string name, string accessToken, long timeOutTime = 0);
@@ -91,13 +96,22 @@ namespace TwixelChat
                 timer += TimeSpan.FromMilliseconds(delayTime);
                 if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
                 {
-                    return;
+                    throw new TimeoutException("Did not recieve login confirmation. Not logged in.");
+                }
+                if (loginFailed)
+                {
+                    loginFailed = false;
+                    throw new TwixelChatException(TwitchChatConstants.LoginUnsuccessful);
                 }
             }
         }
 
-        public async Task JoinChannel(string channel)
+        public async Task JoinChannel(string channel, long timeOutTime = 0)
         {
+            if (timeOutTime <= 0)
+            {
+                timeOutTime = TimeOutTime;
+            }
             ResetTimer();
             Channel = channel;
             await SendRawMessage("JOIN #" + channel);
@@ -107,7 +121,26 @@ namespace TwixelChat
                 timer += TimeSpan.FromMilliseconds(delayTime);
                 if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
                 {
-                    return;
+                    throw new TimeoutException("Did not recieve channel connection confirmation. Not in channel.");
+                }
+            }
+        }
+
+        public async Task LeaveChannel(long timeOutTime = 0)
+        {
+            if (timeOutTime <= 0)
+            {
+                timeOutTime = TimeOutTime;
+            }
+            ResetTimer();
+            await SendRawMessage("PART #" + Channel);
+            while (ChannelState != ChannelStates.NotInChannel)
+            {
+                await Task.Delay(delayTime);
+                timer += TimeSpan.FromMilliseconds(delayTime);
+                if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
+                {
+                    throw new TimeoutException("Did not recieve channel connection confirmation. Not in channel.");
                 }
             }
         }
@@ -155,21 +188,26 @@ namespace TwixelChat
                 secondPart = message.Substring(secondColon + 1);
                 MessageEvent(secondPart, RawMessageRecieved);
             }
-            if (hasParts)
-            {
-                string[] firstSplit = firstPart.Split(' ');
-                if (firstPart.StartsWith(":"))
-                {
-                    HandleReplyNumber(firstSplit[1]);
-                    if (firstSplit[0].Substring(1) == TwitchChatConstants.TwitchHost)
-                    {
-                        
-                    }
-                }
-            }
             if (message.StartsWith("PING"))
             {
                 await SendRawMessage("PONG " + TwitchChatConstants.TwitchHost);
+                Debug.WriteLine("Sent pong");
+            }
+            if (hasParts)
+            {
+                MessageEvent(secondPart, RawMessageRecieved);
+                string[] firstSplit = firstPart.Split(' ');
+                if (firstPart.StartsWith(":"))
+                {
+                    HandleReplyNumber(firstSplit[1], secondPart);
+                }
+            }
+            else
+            {
+                if (message.Contains("PART"))
+                {
+                    ChannelState = ChannelStates.NotInChannel;
+                }
             }
         }
 
@@ -205,7 +243,7 @@ namespace TwixelChat
             }
         }
 
-        void HandleReplyNumber(string number)
+        void HandleReplyNumber(string number, string message)
         {
             if (number == "001")
             {
@@ -249,6 +287,13 @@ namespace TwixelChat
                 // RPL_ENDOFMOTD
                 // Reply: End of message of the day
                 LoggedInState = LoggedInStates.LoggedIn;
+            }
+            else if (number == "NOTICE")
+            {
+                if (message == TwitchChatConstants.LoginUnsuccessful)
+                {
+                    loginFailed = true;
+                }
             }
         }
     }
