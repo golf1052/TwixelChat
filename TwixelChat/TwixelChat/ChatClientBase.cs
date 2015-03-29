@@ -10,7 +10,7 @@ using TwixelChat.Constants;
 
 namespace TwixelChat
 {
-    public abstract class ClientBase
+    public abstract class ChatClientBase
     {
         public enum ConnectionStates
         {
@@ -31,8 +31,16 @@ namespace TwixelChat
             NotInChannel
         }
 
-        public event EventHandler<MessageRecievedEventArgs> RawServerMessageRecieved;
-        public event EventHandler<MessageRecievedEventArgs> RawMessageRecieved;
+        public enum MessageType
+        {
+            Other,
+            Number,
+            Notice,
+            PrivMsg
+        }
+
+        public event EventHandler<RawMessageRecievedEventArgs> RawServerMessageRecieved;
+        public event EventHandler<RawMessageRecievedEventArgs> RawMessageRecieved;
         public event EventHandler<MessageRecievedEventArgs> MessageRecieved;
         public event EventHandler<LoggedInEventArgs> LoggedInStateChanged;
         public event EventHandler LogInFailed;
@@ -67,7 +75,7 @@ namespace TwixelChat
 
         private bool loginFailed;
 
-        public ClientBase()
+        public ChatClientBase()
         {
             this.ConnectionState = ConnectionStates.Disconnected;
             this.loggedInState = LoggedInStates.LoggedOut;
@@ -176,7 +184,7 @@ namespace TwixelChat
 
         async Task HandleResponse(string message)
         {
-            MessageEvent(message, RawServerMessageRecieved);
+            RawMessageEvent(message, RawServerMessageRecieved);
             bool hasParts = false;
             int secondColon = message.IndexOf(':', 1);
             string firstPart = null;
@@ -186,7 +194,7 @@ namespace TwixelChat
                 hasParts = true;
                 firstPart = message.Substring(0, secondColon + 1);
                 secondPart = message.Substring(secondColon + 1);
-                MessageEvent(secondPart, RawMessageRecieved);
+                RawMessageEvent(secondPart, RawMessageRecieved);
             }
             if (message.StartsWith("PING"))
             {
@@ -195,11 +203,16 @@ namespace TwixelChat
             }
             if (hasParts)
             {
-                MessageEvent(secondPart, RawMessageRecieved);
+                RawMessageEvent(secondPart, RawMessageRecieved);
                 string[] firstSplit = firstPart.Split(' ');
                 if (firstPart.StartsWith(":"))
                 {
-                    HandleReplyNumber(firstSplit[1], secondPart);
+                    MessageType messageType = HandleReplyNumber(firstSplit[1], secondPart);
+                    if (messageType == MessageType.PrivMsg)
+                    {
+                        string[] splitName = firstSplit[0].Split('!');
+                        MessageEvent(splitName[0].Substring(1), secondPart, MessageRecieved);
+                    }
                 }
             }
             else
@@ -211,9 +224,17 @@ namespace TwixelChat
             }
         }
 
-        void MessageEvent(string message, EventHandler<MessageRecievedEventArgs> handler)
+        void MessageEvent(string username, string message, EventHandler<MessageRecievedEventArgs> handler)
         {
             MessageRecievedEventArgs messageEvent = new MessageRecievedEventArgs();
+            messageEvent.Username = username;
+            messageEvent.Message = message;
+            Event(messageEvent, handler);
+        }
+
+        void RawMessageEvent(string message, EventHandler<RawMessageRecievedEventArgs> handler)
+        {
+            RawMessageRecievedEventArgs messageEvent = new RawMessageRecievedEventArgs();
             messageEvent.Message = message;
             Event(messageEvent, handler);
         }
@@ -243,50 +264,59 @@ namespace TwixelChat
             }
         }
 
-        void HandleReplyNumber(string number, string message)
+        MessageType HandleReplyNumber(string number, string message)
         {
             if (number == "001")
             {
                 // Welcome
+                return MessageType.Number;
             }
             else if (number == "002")
             {
                 // Host
+                return MessageType.Number;
             }
             else if (number == "003")
             {
                 // Server is new
+                return MessageType.Number;
             }
             else if (number == "004")
             {
                 // Mystery dash
+                return MessageType.Number;
             }
             else if (number == "353")
             {
                 // RPL_NAMREPLY
                 // Reply: Name reply
+                return MessageType.Number;
             }
             else if (number == "366")
             {
                 // RPL_ENDOFNAMES
                 // Reply: End of /NAMES list
                 ChannelState = ChannelStates.InChannel;
+                return MessageType.Number;
             }
             else if (number == "372")
             {
                 // RPL_MOTD
                 // Reply: Message of the day message
+                return MessageType.Number;
             }
             else if (number == "375")
             {
                 // RPL_MOTDSTART
                 // Reply: Message of the day start
+                return MessageType.Number;
             }
             else if (number == "376")
             {
                 // RPL_ENDOFMOTD
                 // Reply: End of message of the day
                 LoggedInState = LoggedInStates.LoggedIn;
+                return MessageType.Number;
             }
             else if (number == "NOTICE")
             {
@@ -294,6 +324,15 @@ namespace TwixelChat
                 {
                     loginFailed = true;
                 }
+                return MessageType.Notice;
+            }
+            else if (number == "PRIVMSG")
+            {
+                return MessageType.PrivMsg;
+            }
+            else
+            {
+                return MessageType.Other;
             }
         }
     }

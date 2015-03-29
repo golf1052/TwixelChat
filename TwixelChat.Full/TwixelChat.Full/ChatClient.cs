@@ -9,14 +9,14 @@ using TwixelChat.Constants;
 
 namespace TwixelChat.Full
 {
-    public class Client : ClientBase
+    public class ChatClient : ChatClientBase
     {
         TcpClient client;
         Task readTask;
         CancellationTokenSource readTaskCancellationSource;
         CancellationToken readTaskCancellationToken;
 
-        public Client() : base()
+        public ChatClient() : base()
         {
         }
 

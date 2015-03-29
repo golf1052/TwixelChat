@@ -37,9 +37,10 @@
     <!-- A reference to the entire .NET Framework is automatically included -->
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClientBase.cs" />
+    <Compile Include="ChatClientBase.cs" />
     <Compile Include="LoggedInEventArgs.cs" />
     <Compile Include="MessageRecievedEventArgs.cs" />
+    <Compile Include="RawMessageRecievedEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TwitchChatConstants.cs" />
     <Compile Include="TwixelChatException.cs" />
