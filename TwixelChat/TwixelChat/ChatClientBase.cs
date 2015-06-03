@@ -68,9 +68,12 @@ namespace TwixelChat
         public StreamWriter Writer { get; protected internal set; }
         public string Channel { get; protected internal set; }
 
-        private TimeSpan timer;
-        private long defaultTimeOutTime = 5000;
-        public long TimeOutTime { get; set; }
+        public bool MembershipCapabilityEnabled { get; protected internal set; }
+        public bool CommandsCapabilityEnabled { get; protected internal set; }
+        public bool TagsCapabilityEnabled { get; protected internal set; }
+
+        private const long DefaultTimeOutTime = 5000;
+        public TimeSpan TimeOutTime { get; set; }
         private int delayTime = 100;
 
         private bool loginFailed;
@@ -80,32 +83,26 @@ namespace TwixelChat
             this.ConnectionState = ConnectionStates.Disconnected;
             this.loggedInState = LoggedInStates.LoggedOut;
             this.ChannelState = ChannelStates.NotInChannel;
-            timer = TimeSpan.Zero;
-            TimeOutTime = defaultTimeOutTime;
+            TimeOutTime = TimeSpan.FromMilliseconds(DefaultTimeOutTime);
 
             loginFailed = false;
         }
 
-        public abstract Task Connect(string name, string accessToken, long timeOutTime = 0);
+        public abstract Task Connect(string name, string accessToken);
         public abstract void Disconnect();
 
-        protected async Task Login(string name, string accessToken, long timeOutTime = 0)
+        protected async Task Login(string name, string accessToken)
         {
-            if (timeOutTime <= 0)
-            {
-                timeOutTime = TimeOutTime;
-            }
-            ResetTimer();
             await SendRawMessage("PASS oauth:" + accessToken);
             await SendRawMessage("NICK " + name);
+            await EnableMembershipCapability();
+            await EnableCommandsCapability();
+            await EnableTagsCapability();
+            TimeoutTimer timer = CreateDefaultTimer("Did not receive login confirmation. Not logged in.");
             while (LoggedInState != LoggedInStates.LoggedIn)
             {
                 await Task.Delay(delayTime);
-                timer += TimeSpan.FromMilliseconds(delayTime);
-                if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
-                {
-                    throw new TimeoutException("Did not recieve login confirmation. Not logged in.");
-                }
+                timer.UpdateTimer();
                 if (loginFailed)
                 {
                     loginFailed = false;
@@ -114,48 +111,66 @@ namespace TwixelChat
             }
         }
 
-        public async Task JoinChannel(string channel, long timeOutTime = 0)
+        public async Task EnableMembershipCapability()
         {
-            if (timeOutTime <= 0)
+            await SendCapability(TwitchChatConstants.MembershipCapability);
+            TimeoutTimer timer = CreateDefaultTimer("Did not receive membership capability ACK");
+            while (MembershipCapabilityEnabled != true)
             {
-                timeOutTime = TimeOutTime;
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
             }
-            ResetTimer();
+        }
+
+        public async Task EnableCommandsCapability()
+        {
+            await SendCapability(TwitchChatConstants.CommandsCapability);
+            TimeoutTimer timer = CreateDefaultTimer("Did not receive commands capability ACK");
+            while (CommandsCapabilityEnabled != true)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+            }
+        }
+
+        public async Task EnableTagsCapability()
+        {
+            await SendCapability(TwitchChatConstants.TagsCapability);
+            TimeoutTimer timer = CreateDefaultTimer("Did not receive tags capability ACK");
+            while (TagsCapabilityEnabled !=  true)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+            }
+        }
+
+        protected async Task SendCapability(string capability)
+        {
+            // You can't remove a capability once you send it
+            await SendRawMessage("CAP REQ :" + capability);
+        }
+
+        public async Task JoinChannel(string channel)
+        {
             Channel = channel;
             await SendRawMessage("JOIN #" + channel);
+            TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
             while (ChannelState != ChannelStates.InChannel)
             {
                 await Task.Delay(delayTime);
-                timer += TimeSpan.FromMilliseconds(delayTime);
-                if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
-                {
-                    throw new TimeoutException("Did not recieve channel connection confirmation. Not in channel.");
-                }
+                timer.UpdateTimer();
             }
         }
 
-        public async Task LeaveChannel(long timeOutTime = 0)
+        public async Task LeaveChannel()
         {
-            if (timeOutTime <= 0)
-            {
-                timeOutTime = TimeOutTime;
-            }
-            ResetTimer();
             await SendRawMessage("PART #" + Channel);
+            TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
             while (ChannelState != ChannelStates.NotInChannel)
             {
                 await Task.Delay(delayTime);
-                timer += TimeSpan.FromMilliseconds(delayTime);
-                if (timer >= TimeSpan.FromMilliseconds(TimeOutTime))
-                {
-                    throw new TimeoutException("Did not recieve channel connection confirmation. Not in channel.");
-                }
+                timer.UpdateTimer();
             }
-        }
-
-        void ResetTimer()
-        {
-            timer = TimeSpan.Zero;
         }
 
         public async Task SendRawMessage(string message)
@@ -177,51 +192,64 @@ namespace TwixelChat
                 {
                     return;
                 }
-                Debug.WriteLine(result);
                 await HandleResponse(result);
             }
         }
 
-        async Task HandleResponse(string message)
+        async Task HandleResponse(string rawServerMessage)
         {
-            RawMessageEvent(message, RawServerMessageRecieved);
+            Debug.WriteLine(rawServerMessage);
+            RawMessageEvent(rawServerMessage, RawServerMessageRecieved);
+            if (rawServerMessage.StartsWith(":"))
+            {
+                // some kind of server message
+            }
+            else if (rawServerMessage.StartsWith("@"))
+            {
+                // private message, also assumes tags have been turned on
+                // should definitely support having tags on and off
+            }
+            else
+            {
+
+            }
             bool hasParts = false;
-            int secondColon = message.IndexOf(':', 1);
+            int secondColon = rawServerMessage.IndexOf(':', 1);
             string firstPart = null;
             string secondPart = null;
-            if (secondColon != -1)
-            {
-                hasParts = true;
-                firstPart = message.Substring(0, secondColon + 1);
-                secondPart = message.Substring(secondColon + 1);
-                RawMessageEvent(secondPart, RawMessageRecieved);
-            }
-            if (message.StartsWith("PING"))
+            //if (secondColon != -1)
+            //{
+            //    hasParts = true;
+            //    firstPart = message.Substring(0, secondColon + 1);
+            //    secondPart = message.Substring(secondColon + 1);
+            //    RawMessageEvent(secondPart, RawMessageRecieved);
+            //}
+            if (rawServerMessage.StartsWith("PING"))
             {
                 await SendRawMessage("PONG " + TwitchChatConstants.TwitchHost);
                 Debug.WriteLine("Sent pong");
             }
-            if (hasParts)
-            {
-                RawMessageEvent(secondPart, RawMessageRecieved);
-                string[] firstSplit = firstPart.Split(' ');
-                if (firstPart.StartsWith(":"))
-                {
-                    MessageType messageType = HandleReplyNumber(firstSplit[1], secondPart);
-                    if (messageType == MessageType.PrivMsg)
-                    {
-                        string[] splitName = firstSplit[0].Split('!');
-                        MessageEvent(splitName[0].Substring(1), secondPart, MessageRecieved);
-                    }
-                }
-            }
-            else
-            {
-                if (message.Contains("PART"))
-                {
-                    ChannelState = ChannelStates.NotInChannel;
-                }
-            }
+            //if (hasParts)
+            //{
+            //    RawMessageEvent(secondPart, RawMessageRecieved);
+            //    string[] firstSplit = firstPart.Split(' ');
+            //    if (firstPart.StartsWith(":"))
+            //    {
+            //        MessageType messageType = HandleReplyNumber(firstSplit[1], secondPart);
+            //        if (messageType == MessageType.PrivMsg)
+            //        {
+            //            string[] splitName = firstSplit[0].Split('!');
+            //            MessageEvent(splitName[0].Substring(1), secondPart, MessageRecieved);
+            //        }
+            //    }
+            //}
+            //else
+            //{
+            //    if (message.Contains("PART"))
+            //    {
+            //        ChannelState = ChannelStates.NotInChannel;
+            //    }
+            //}
         }
 
         void MessageEvent(string username, string message, EventHandler<MessageRecievedEventArgs> handler)
@@ -334,6 +362,11 @@ namespace TwixelChat
             {
                 return MessageType.Other;
             }
+        }
+
+        private TimeoutTimer CreateDefaultTimer(string errorString)
+        {
+            return new TimeoutTimer(delayTime, TimeOutTime, errorString);
         }
     }
 }

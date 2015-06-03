@@ -20,7 +20,7 @@ namespace TwixelChat.Full
         {
         }
 
-        public override async Task Connect(string name, string accessToken, long timeOutTime = 0)
+        public override async Task Connect(string name, string accessToken)
         {
             client = new TcpClient(TwitchChatConstants.TwitchServer, TwitchChatConstants.TwitchPort);
             ConnectionState = ConnectionStates.Connected;
@@ -32,7 +32,7 @@ namespace TwixelChat.Full
             readTaskCancellationSource = new CancellationTokenSource();
             readTaskCancellationToken = readTaskCancellationSource.Token;
             readTask = Task.Factory.StartNew(() => ReadFromStream(readTaskCancellationToken), readTaskCancellationToken);
-            await Login(name, accessToken, timeOutTime);
+            await Login(name, accessToken);
         }
 
         public override void Disconnect()
@@ -42,6 +42,7 @@ namespace TwixelChat.Full
             client.Close();
             LoggedInState = LoggedInStates.LoggedOut;
             ConnectionState = ConnectionStates.Disconnected;
+            client = null;
         }
     }
 }

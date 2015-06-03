@@ -42,6 +42,7 @@
     <Compile Include="MessageRecievedEventArgs.cs" />
     <Compile Include="RawMessageRecievedEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TimeoutTimer.cs" />
     <Compile Include="TwitchChatConstants.cs" />
     <Compile Include="TwixelChatException.cs" />
   </ItemGroup>
