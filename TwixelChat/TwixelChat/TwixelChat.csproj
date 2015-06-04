@@ -38,6 +38,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ChatClientBase.cs" />
+    <Compile Include="ChatEmote.cs" />
+    <Compile Include="ChatMessage.cs" />
+    <Compile Include="ChatUser.cs" />
     <Compile Include="LoggedInEventArgs.cs" />
     <Compile Include="MessageRecievedEventArgs.cs" />
     <Compile Include="RawMessageRecievedEventArgs.cs" />

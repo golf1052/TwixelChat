@@ -199,20 +199,44 @@ namespace TwixelChat
         async Task HandleResponse(string rawServerMessage)
         {
             Debug.WriteLine(rawServerMessage);
+            // First send off raw server message event.
             RawMessageEvent(rawServerMessage, RawServerMessageRecieved);
-            if (rawServerMessage.StartsWith(":"))
+
+            // Now check for PINGs because those require no processing
+            if (rawServerMessage.StartsWith("PING"))
             {
-                // some kind of server message
+                await SendRawMessage("PONG " + TwitchChatConstants.TwitchHost);
+                Debug.WriteLine("Sent pong");
+                return;
             }
-            else if (rawServerMessage.StartsWith("@"))
+
+            if (rawServerMessage.StartsWith("@"))
             {
                 // private message, also assumes tags have been turned on
                 // should definitely support having tags on and off
+                string tagsSection = rawServerMessage.Split(' ')[0];
+                string[] tags = tagsSection.Split(';');
+                foreach (string tag in tags)
+                {
+
+                }
+            }
+            else if (rawServerMessage.StartsWith(":"))
+            {
+                if (!TagsCapabilityEnabled)
+                {
+
+                }
+                else
+                {
+
+                }
             }
             else
             {
 
             }
+
             bool hasParts = false;
             int secondColon = rawServerMessage.IndexOf(':', 1);
             string firstPart = null;
@@ -224,11 +248,7 @@ namespace TwixelChat
             //    secondPart = message.Substring(secondColon + 1);
             //    RawMessageEvent(secondPart, RawMessageRecieved);
             //}
-            if (rawServerMessage.StartsWith("PING"))
-            {
-                await SendRawMessage("PONG " + TwitchChatConstants.TwitchHost);
-                Debug.WriteLine("Sent pong");
-            }
+            
             //if (hasParts)
             //{
             //    RawMessageEvent(secondPart, RawMessageRecieved);
