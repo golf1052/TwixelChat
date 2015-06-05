@@ -37,6 +37,10 @@
     <!-- A reference to the entire .NET Framework is automatically included -->
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Channel.cs" />
+    <Compile Include="ChannelNotice.cs" />
+    <Compile Include="HelperMethods.cs" />
+    <Compile Include="UserState.cs" />
     <Compile Include="ChatClientBase.cs" />
     <Compile Include="ChatEmote.cs" />
     <Compile Include="ChatMessage.cs" />

@@ -25,12 +25,6 @@ namespace TwixelChat
             LoggedOut
         }
 
-        public enum ChannelStates
-        {
-            InChannel,
-            NotInChannel
-        }
-
         public enum MessageType
         {
             Other,
@@ -45,7 +39,6 @@ namespace TwixelChat
         public event EventHandler<LoggedInEventArgs> LoggedInStateChanged;
         public event EventHandler LogInFailed;
 
-        public ChannelStates ChannelState { get; protected internal set; }
         public ConnectionStates ConnectionState { get; protected internal set; }
         private LoggedInStates loggedInState;
         public LoggedInStates LoggedInState
@@ -66,7 +59,7 @@ namespace TwixelChat
         }
         public StreamReader Reader { get; protected internal set; }
         public StreamWriter Writer { get; protected internal set; }
-        public string Channel { get; protected internal set; }
+        public Channel Channel { get; protected internal set; }
 
         public bool MembershipCapabilityEnabled { get; protected internal set; }
         public bool CommandsCapabilityEnabled { get; protected internal set; }
@@ -82,7 +75,7 @@ namespace TwixelChat
         {
             this.ConnectionState = ConnectionStates.Disconnected;
             this.loggedInState = LoggedInStates.LoggedOut;
-            this.ChannelState = ChannelStates.NotInChannel;
+            Channel = new TwixelChat.Channel();
             TimeOutTime = TimeSpan.FromMilliseconds(DefaultTimeOutTime);
 
             loginFailed = false;
@@ -91,13 +84,26 @@ namespace TwixelChat
         public abstract Task Connect(string name, string accessToken);
         public abstract void Disconnect();
 
-        protected async Task Login(string name, string accessToken)
+        protected async Task Login(string name, string accessToken,
+            bool membership = true, bool commands = true, bool tags = true)
         {
             await SendRawMessage("PASS oauth:" + accessToken);
             await SendRawMessage("NICK " + name);
-            await EnableMembershipCapability();
-            await EnableCommandsCapability();
-            await EnableTagsCapability();
+            if (membership)
+            {
+                await EnableMembershipCapability();
+            }
+            
+            if (commands)
+            {
+                await EnableCommandsCapability();
+            }
+            
+            if (tags)
+            {
+                await EnableTagsCapability();
+            }
+            
             TimeoutTimer timer = CreateDefaultTimer("Did not receive login confirmation. Not logged in.");
             //while (LoggedInState != LoggedInStates.LoggedIn)
             //{
@@ -146,13 +152,20 @@ namespace TwixelChat
 
         protected async Task SendCapability(string capability)
         {
-            // You can't remove a capability once you send it
-            await SendRawMessage("CAP REQ :" + capability);
+            if (Channel.ChannelState == TwixelChat.Channel.ChannelStates.NotInChannel)
+            {
+                // You can't remove a capability once you send it
+                await SendRawMessage("CAP REQ :" + capability);
+            }
+            else
+            {
+                throw new TwixelChatException("Can only send capability while not in channel.");
+            }
         }
 
         public async Task JoinChannel(string channel)
         {
-            Channel = channel;
+            Channel.ChannelName = channel;
             await SendRawMessage("JOIN #" + channel);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
             //while (ChannelState != ChannelStates.InChannel)
@@ -214,14 +227,27 @@ namespace TwixelChat
             {
                 int splitIndex = rawServerMessage.IndexOf(' ');
                 string rest = rawServerMessage.Substring(splitIndex + 1);
-                if (rest.Contains("PRIVMSG"))
+                string[] splitSpaces = rest.Split(' ');
+
+                if (splitSpaces[1] == "PRIVMSG")
                 {
                     ChatMessage message = new ChatMessage(rawServerMessage);
                     MessageEvent(message, MessageRecieved);
                 }
-                else if (rest.Contains("USERSTATE"))
+                else if (splitSpaces[1] == "USERSTATE")
                 {
-                    // do userstate stuff
+                    string tagsSection = rawServerMessage.Substring(0, splitIndex);
+                    Channel.ChannelUserState = new UserState(tagsSection, true);
+                }
+                else if (splitSpaces[1] == "NOTICE")
+                {
+                    // do notice stuff
+                    Channel.HandleNotice(new ChannelNotice(rawServerMessage));
+                }
+                else
+                {
+                    // some kind of error?
+                    Debug.WriteLine("¯\\_(ツ)_/¯");
                 }
             }
             else if (rawServerMessage.StartsWith(":"))
@@ -340,7 +366,7 @@ namespace TwixelChat
             {
                 // RPL_ENDOFNAMES
                 // Reply: End of /NAMES list
-                ChannelState = ChannelStates.InChannel;
+                Channel.ChannelState = Channel.ChannelStates.InChannel;
                 return MessageType.Number;
             }
             else if (number == "372")
