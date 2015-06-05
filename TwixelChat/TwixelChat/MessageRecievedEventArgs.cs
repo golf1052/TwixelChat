@@ -8,6 +8,6 @@ namespace TwixelChat
 {
     public class MessageRecievedEventArgs : RawMessageRecievedEventArgs
     {
-        public string Username { get; set; }
+        public ChatMessage ChatMessage { get; set; }
     }
 }

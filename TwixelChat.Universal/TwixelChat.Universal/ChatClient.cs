@@ -17,8 +17,12 @@ namespace TwixelChat.Universal
         Task readTask;
         CancellationTokenSource readTaskCancellationSource;
         CancellationToken readTaskCancellationToken;
+        
+        public ChatClient() : base()
+        {
+        }
 
-        public async override Task Connect(string name, string accessToken, long timeOutTime = 0)
+        public async override Task Connect(string name, string accessToken)
         {
             ConnectionState = ConnectionStates.Connecting;
             client = new StreamSocket();
@@ -31,14 +35,14 @@ namespace TwixelChat.Universal
                 throw;
             }
             ConnectionState = ConnectionStates.Connected;
-            Reader = new StreamReader(client.InputStream.AsStreamForRead());
+            Reader = new StreamReader(client.InputStream.AsStreamForRead(), Encoding.UTF8);
             Writer = new StreamWriter(client.OutputStream.AsStreamForWrite());
             Writer.AutoFlush = true;
 
             readTaskCancellationSource = new CancellationTokenSource();
             readTaskCancellationToken = readTaskCancellationSource.Token;
             readTask = Task.Factory.StartNew(() => ReadFromStream(readTaskCancellationToken));
-            await Login(name, accessToken, timeOutTime);
+            await Login(name, accessToken);
         }
 
         public override void Disconnect()

@@ -99,49 +99,49 @@ namespace TwixelChat
             await EnableCommandsCapability();
             await EnableTagsCapability();
             TimeoutTimer timer = CreateDefaultTimer("Did not receive login confirmation. Not logged in.");
-            while (LoggedInState != LoggedInStates.LoggedIn)
-            {
-                await Task.Delay(delayTime);
-                timer.UpdateTimer();
-                if (loginFailed)
-                {
-                    loginFailed = false;
-                    throw new TwixelChatException(TwitchChatConstants.LoginUnsuccessful);
-                }
-            }
+            //while (LoggedInState != LoggedInStates.LoggedIn)
+            //{
+            //    await Task.Delay(delayTime);
+            //    timer.UpdateTimer();
+            //    if (loginFailed)
+            //    {
+            //        loginFailed = false;
+            //        throw new TwixelChatException(TwitchChatConstants.LoginUnsuccessful);
+            //    }
+            //}
         }
 
         public async Task EnableMembershipCapability()
         {
             await SendCapability(TwitchChatConstants.MembershipCapability);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive membership capability ACK");
-            while (MembershipCapabilityEnabled != true)
-            {
-                await Task.Delay(delayTime);
-                timer.UpdateTimer();
-            }
+            //while (MembershipCapabilityEnabled != true)
+            //{
+            //    await Task.Delay(delayTime);
+            //    timer.UpdateTimer();
+            //}
         }
 
         public async Task EnableCommandsCapability()
         {
             await SendCapability(TwitchChatConstants.CommandsCapability);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive commands capability ACK");
-            while (CommandsCapabilityEnabled != true)
-            {
-                await Task.Delay(delayTime);
-                timer.UpdateTimer();
-            }
+            //while (CommandsCapabilityEnabled != true)
+            //{
+            //    await Task.Delay(delayTime);
+            //    timer.UpdateTimer();
+            //}
         }
 
         public async Task EnableTagsCapability()
         {
             await SendCapability(TwitchChatConstants.TagsCapability);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive tags capability ACK");
-            while (TagsCapabilityEnabled !=  true)
-            {
-                await Task.Delay(delayTime);
-                timer.UpdateTimer();
-            }
+            //while (TagsCapabilityEnabled !=  true)
+            //{
+            //    await Task.Delay(delayTime);
+            //    timer.UpdateTimer();
+            //}
         }
 
         protected async Task SendCapability(string capability)
@@ -155,22 +155,22 @@ namespace TwixelChat
             Channel = channel;
             await SendRawMessage("JOIN #" + channel);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
-            while (ChannelState != ChannelStates.InChannel)
-            {
-                await Task.Delay(delayTime);
-                timer.UpdateTimer();
-            }
+            //while (ChannelState != ChannelStates.InChannel)
+            //{
+            //    await Task.Delay(delayTime);
+            //    timer.UpdateTimer();
+            //}
         }
 
         public async Task LeaveChannel()
         {
             await SendRawMessage("PART #" + Channel);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
-            while (ChannelState != ChannelStates.NotInChannel)
-            {
-                await Task.Delay(delayTime);
-                timer.UpdateTimer();
-            }
+            //while (ChannelState != ChannelStates.NotInChannel)
+            //{
+            //    await Task.Delay(delayTime);
+            //    timer.UpdateTimer();
+            //}
         }
 
         public async Task SendRawMessage(string message)
@@ -212,25 +212,21 @@ namespace TwixelChat
 
             if (rawServerMessage.StartsWith("@"))
             {
-                // private message, also assumes tags have been turned on
-                // should definitely support having tags on and off
-                string tagsSection = rawServerMessage.Split(' ')[0];
-                string[] tags = tagsSection.Split(';');
-                foreach (string tag in tags)
+                int splitIndex = rawServerMessage.IndexOf(' ');
+                string rest = rawServerMessage.Substring(splitIndex + 1);
+                if (rest.Contains("PRIVMSG"))
                 {
-
+                    ChatMessage message = new ChatMessage(rawServerMessage);
+                    MessageEvent(message, MessageRecieved);
+                }
+                else if (rest.Contains("USERSTATE"))
+                {
+                    // do userstate stuff
                 }
             }
             else if (rawServerMessage.StartsWith(":"))
             {
-                if (!TagsCapabilityEnabled)
-                {
 
-                }
-                else
-                {
-
-                }
             }
             else
             {
@@ -272,11 +268,11 @@ namespace TwixelChat
             //}
         }
 
-        void MessageEvent(string username, string message, EventHandler<MessageRecievedEventArgs> handler)
+        void MessageEvent(ChatMessage message, EventHandler<MessageRecievedEventArgs> handler)
         {
             MessageRecievedEventArgs messageEvent = new MessageRecievedEventArgs();
-            messageEvent.Username = username;
-            messageEvent.Message = message;
+            messageEvent.ChatMessage = message;
+            messageEvent.Message = message.Message;
             Event(messageEvent, handler);
         }
 
