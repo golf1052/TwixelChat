@@ -105,49 +105,49 @@ namespace TwixelChat
             }
             
             TimeoutTimer timer = CreateDefaultTimer("Did not receive login confirmation. Not logged in.");
-            //while (LoggedInState != LoggedInStates.LoggedIn)
-            //{
-            //    await Task.Delay(delayTime);
-            //    timer.UpdateTimer();
-            //    if (loginFailed)
-            //    {
-            //        loginFailed = false;
-            //        throw new TwixelChatException(TwitchChatConstants.LoginUnsuccessful);
-            //    }
-            //}
+            while (LoggedInState != LoggedInStates.LoggedIn)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+                if (loginFailed)
+                {
+                    loginFailed = false;
+                    throw new TwixelChatException(TwitchChatConstants.LoginUnsuccessful);
+                }
+            }
         }
 
         public async Task EnableMembershipCapability()
         {
             await SendCapability(TwitchChatConstants.MembershipCapability);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive membership capability ACK");
-            //while (MembershipCapabilityEnabled != true)
-            //{
-            //    await Task.Delay(delayTime);
-            //    timer.UpdateTimer();
-            //}
+            while (MembershipCapabilityEnabled != true)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+            }
         }
 
         public async Task EnableCommandsCapability()
         {
             await SendCapability(TwitchChatConstants.CommandsCapability);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive commands capability ACK");
-            //while (CommandsCapabilityEnabled != true)
-            //{
-            //    await Task.Delay(delayTime);
-            //    timer.UpdateTimer();
-            //}
+            while (CommandsCapabilityEnabled != true)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+            }
         }
 
         public async Task EnableTagsCapability()
         {
             await SendCapability(TwitchChatConstants.TagsCapability);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive tags capability ACK");
-            //while (TagsCapabilityEnabled !=  true)
-            //{
-            //    await Task.Delay(delayTime);
-            //    timer.UpdateTimer();
-            //}
+            while (TagsCapabilityEnabled != true)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+            }
         }
 
         protected async Task SendCapability(string capability)
@@ -168,22 +168,22 @@ namespace TwixelChat
             Channel.ChannelName = channel;
             await SendRawMessage("JOIN #" + channel);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
-            //while (ChannelState != ChannelStates.InChannel)
-            //{
-            //    await Task.Delay(delayTime);
-            //    timer.UpdateTimer();
-            //}
+            while (Channel.ChannelState != Channel.ChannelStates.InChannel)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+            }
         }
 
         public async Task LeaveChannel()
         {
             await SendRawMessage("PART #" + Channel);
-            TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
-            //while (ChannelState != ChannelStates.NotInChannel)
-            //{
-            //    await Task.Delay(delayTime);
-            //    timer.UpdateTimer();
-            //}
+            TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Might still be in channel.");
+            while (Channel.ChannelState != Channel.ChannelStates.NotInChannel)
+            {
+                await Task.Delay(delayTime);
+                timer.UpdateTimer();
+            }
         }
 
         public async Task SendRawMessage(string message)
@@ -223,20 +223,22 @@ namespace TwixelChat
                 return;
             }
 
+            int firstSpace = rawServerMessage.IndexOf(' ');
+            string rest = rawServerMessage.Substring(firstSpace + 1);
+
             if (rawServerMessage.StartsWith("@"))
             {
-                int splitIndex = rawServerMessage.IndexOf(' ');
-                string rest = rawServerMessage.Substring(splitIndex + 1);
                 string[] splitSpaces = rest.Split(' ');
 
                 if (splitSpaces[1] == "PRIVMSG")
                 {
                     ChatMessage message = new ChatMessage(rawServerMessage);
+                    RawMessageEvent(message.Message, RawMessageRecieved);
                     MessageEvent(message, MessageRecieved);
                 }
                 else if (splitSpaces[1] == "USERSTATE")
                 {
-                    string tagsSection = rawServerMessage.Substring(0, splitIndex);
+                    string tagsSection = rawServerMessage.Substring(0, firstSpace);
                     Channel.ChannelUserState = new UserState(tagsSection, true);
                 }
                 else if (splitSpaces[1] == "NOTICE")
@@ -252,46 +254,27 @@ namespace TwixelChat
             }
             else if (rawServerMessage.StartsWith(":"))
             {
+                int secondSpace = rest.IndexOf(' ');
+                string host = rawServerMessage.Substring(1, firstSpace - 1);
+                string replyNumber = rest.Substring(0, secondSpace);
+                int secondColon = rawServerMessage.IndexOf(':', 1);
+                string rawMessage = null;
+                if (secondColon != -1)
+                {
+                    rawMessage = rawServerMessage.Substring(secondColon + 1);
+                    RawMessageEvent(rawMessage, RawMessageRecieved);
+                }
 
+                HandleReplyNumber(rawServerMessage, host, replyNumber, rawMessage);
             }
             else
             {
-
+                // ping pong part
+                if (rawServerMessage.StartsWith("PART"))
+                {
+                    Channel.ChannelState = Channel.ChannelStates.NotInChannel;
+                }
             }
-
-            bool hasParts = false;
-            int secondColon = rawServerMessage.IndexOf(':', 1);
-            string firstPart = null;
-            string secondPart = null;
-            //if (secondColon != -1)
-            //{
-            //    hasParts = true;
-            //    firstPart = message.Substring(0, secondColon + 1);
-            //    secondPart = message.Substring(secondColon + 1);
-            //    RawMessageEvent(secondPart, RawMessageRecieved);
-            //}
-            
-            //if (hasParts)
-            //{
-            //    RawMessageEvent(secondPart, RawMessageRecieved);
-            //    string[] firstSplit = firstPart.Split(' ');
-            //    if (firstPart.StartsWith(":"))
-            //    {
-            //        MessageType messageType = HandleReplyNumber(firstSplit[1], secondPart);
-            //        if (messageType == MessageType.PrivMsg)
-            //        {
-            //            string[] splitName = firstSplit[0].Split('!');
-            //            MessageEvent(splitName[0].Substring(1), secondPart, MessageRecieved);
-            //        }
-            //    }
-            //}
-            //else
-            //{
-            //    if (message.Contains("PART"))
-            //    {
-            //        ChannelState = ChannelStates.NotInChannel;
-            //    }
-            //}
         }
 
         void MessageEvent(ChatMessage message, EventHandler<MessageRecievedEventArgs> handler)
@@ -334,69 +317,131 @@ namespace TwixelChat
             }
         }
 
-        MessageType HandleReplyNumber(string number, string message)
+        MessageType HandleReplyNumber(string raw, string host,
+            string replyNumber, string message)
         {
-            if (number == "001")
+            if (replyNumber == "001")
             {
                 // Welcome
                 return MessageType.Number;
             }
-            else if (number == "002")
+            else if (replyNumber == "002")
             {
                 // Host
                 return MessageType.Number;
             }
-            else if (number == "003")
+            else if (replyNumber == "003")
             {
                 // Server is new
                 return MessageType.Number;
             }
-            else if (number == "004")
+            else if (replyNumber == "004")
             {
                 // Mystery dash
                 return MessageType.Number;
             }
-            else if (number == "353")
+            else if (replyNumber == "353")
             {
                 // RPL_NAMREPLY
                 // Reply: Name reply
                 return MessageType.Number;
             }
-            else if (number == "366")
+            else if (replyNumber == "366")
             {
                 // RPL_ENDOFNAMES
                 // Reply: End of /NAMES list
                 Channel.ChannelState = Channel.ChannelStates.InChannel;
                 return MessageType.Number;
             }
-            else if (number == "372")
+            else if (replyNumber == "372")
             {
                 // RPL_MOTD
                 // Reply: Message of the day message
                 return MessageType.Number;
             }
-            else if (number == "375")
+            else if (replyNumber == "375")
             {
                 // RPL_MOTDSTART
                 // Reply: Message of the day start
                 return MessageType.Number;
             }
-            else if (number == "376")
+            else if (replyNumber == "376")
             {
                 // RPL_ENDOFMOTD
                 // Reply: End of message of the day
                 LoggedInState = LoggedInStates.LoggedIn;
                 return MessageType.Number;
             }
-            else if (number == "NOTICE")
+            else if (replyNumber == "CAP")
             {
-                if (message == TwitchChatConstants.LoginUnsuccessful)
+                string[] split = raw.Split(' ');
+                if (split.Length >= 5)
+                {
+                    if (split[2] == "*" && split[3] == "ACK")
+                    {
+                        string enabledTag = split[4].Substring(1);
+                        if (enabledTag == TwitchChatConstants.MembershipCapability)
+                        {
+                            MembershipCapabilityEnabled = true;
+                        }
+                        else if (enabledTag == TwitchChatConstants.CommandsCapability)
+                        {
+                            CommandsCapabilityEnabled = true;
+                        }
+                        else if (enabledTag == TwitchChatConstants.TagsCapability)
+                        {
+                            TagsCapabilityEnabled = true;
+                        }
+                    }
+                }
+                else
+                {
+                    // some kind of error?
+                    Debug.WriteLine("Something is wrong with CAPs");
+                }
+                return MessageType.Other;
+            }
+            else if (replyNumber == "JOIN")
+            {
+                // we handle OUR channel join with 366
+                // can handle other people joins here
+                return MessageType.Other;
+            }
+            else if (replyNumber == "PART")
+            {
+                // can handle parts here
+                return MessageType.Other;
+            }
+            else if (replyNumber == "MODE")
+            {
+                if (host == "jtv")
+                {
+                    string[] split = raw.Split(' ');
+                    if (split[split.Length - 2] == "+o")
+                    {
+                        Channel.Mods.Add(split[split.Length - 1]);
+                    }
+                    else if (split[split.Length - 2] == "-o")
+                    {
+                        Channel.Mods.Remove(split[split.Length - 1]);
+                    }
+                }
+                return MessageType.Other;
+            }
+            else if (replyNumber == "NOTICE")
+            {
+                if (!string.IsNullOrEmpty(message) && message == TwitchChatConstants.LoginUnsuccessful)
                 {
                     loginFailed = true;
                 }
                 return MessageType.Notice;
             }
-            else if (number == "PRIVMSG")
+            else if (replyNumber == "CLEARCHAT")
+            {
+                // user was muted/banned
+                return MessageType.Other;
+            }
+            else if (replyNumber == "PRIVMSG")
             {
                 return MessageType.PrivMsg;
             }

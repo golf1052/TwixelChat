@@ -18,6 +18,8 @@ namespace TwixelChat
         public string ChannelName { get; internal set; }
         public UserState ChannelUserState { get; internal set; }
 
+        public List<string> Mods { get; internal set; }
+
         public bool SubMode { get; private set; }
         public bool SlowMode { get; private set; }
         public long SlowDuration { get; private set; }
@@ -25,11 +27,14 @@ namespace TwixelChat
         public bool HostMode { get; private set; }
         public string HostChannel { get; private set; }
 
+        public event EventHandler<ChannelNoticeEvent> ChannelEventRecieved;
+
         public Channel()
         {
             ChannelState = ChannelStates.NotInChannel;
             ChannelName = null;
             ChannelUserState = null;
+            Mods = new List<string>();
             SubMode = false;
             SlowMode = false;
             SlowDuration = 0;
@@ -40,8 +45,6 @@ namespace TwixelChat
 
         public void HandleNotice(ChannelNotice notice)
         {
-            // this shit has to throw events toooooo
-            // (this library is like all events...)
             if (notice.MessageId == ChannelNotice.MessageIds.None)
             {
                 // custom parsing waaat
@@ -82,6 +85,22 @@ namespace TwixelChat
             {
                 HostMode = false;
                 HostChannel = null;
+            }
+
+            ChannelNoticeEvent channelEvent = new ChannelNoticeEvent();
+            channelEvent.Message = notice.Message;
+            channelEvent.MessageId = notice.MessageId;
+            channelEvent.SlowDuration = SlowDuration;
+            channelEvent.HostChannel = HostChannel;
+            Event(channelEvent, ChannelEventRecieved);
+        }
+
+        private void Event<T>(T e, EventHandler<T> h)
+        {
+            EventHandler<T> handler = h;
+            if (handler != null)
+            {
+                handler(this, e);
             }
         }
     }
