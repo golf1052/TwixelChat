@@ -35,8 +35,9 @@ namespace TwixelChat.Universal
                 throw;
             }
             ConnectionState = ConnectionStates.Connected;
+            UTF8Encoding utf8WithoutBOM = new UTF8Encoding(false);
             Reader = new StreamReader(client.InputStream.AsStreamForRead(), Encoding.UTF8);
-            Writer = new StreamWriter(client.OutputStream.AsStreamForWrite());
+            Writer = new StreamWriter(client.OutputStream.AsStreamForWrite(), utf8WithoutBOM);
             Writer.AutoFlush = true;
 
             readTaskCancellationSource = new CancellationTokenSource();

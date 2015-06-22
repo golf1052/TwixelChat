@@ -25,8 +25,9 @@ namespace TwixelChat.Full
             client = new TcpClient(TwitchChatConstants.TwitchServer, TwitchChatConstants.TwitchPort);
             ConnectionState = ConnectionStates.Connected;
             NetworkStream stream = client.GetStream();
+            UTF8Encoding utf8WithoutBOM = new UTF8Encoding(false);
             Reader = new StreamReader(stream, Encoding.UTF8);
-            Writer = new StreamWriter(stream, Encoding.ASCII);
+            Writer = new StreamWriter(stream, utf8WithoutBOM);
             Writer.AutoFlush = true;
 
             readTaskCancellationSource = new CancellationTokenSource();
