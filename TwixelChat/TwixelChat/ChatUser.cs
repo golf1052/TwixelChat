@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace TwixelChat
 {
+    /// <summary>
+    /// Class representing the user info for a chat message
+    /// </summary>
     public class ChatUser : UserState
     {
         internal List<ChatEmote> Emotes { get; private set; }

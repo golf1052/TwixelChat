@@ -38,17 +38,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Channel.cs" />
-    <Compile Include="ChannelNoticeEvent.cs" />
+    <Compile Include="Events\ChannelConnectionEventArgs.cs" />
+    <Compile Include="Events\ChannelNoticeEvent.cs" />
     <Compile Include="ChannelNotice.cs" />
+    <Compile Include="Events\ConnectionEventArgs.cs" />
     <Compile Include="HelperMethods.cs" />
     <Compile Include="UserState.cs" />
     <Compile Include="ChatClientBase.cs" />
     <Compile Include="ChatEmote.cs" />
     <Compile Include="ChatMessage.cs" />
     <Compile Include="ChatUser.cs" />
-    <Compile Include="LoggedInEventArgs.cs" />
-    <Compile Include="MessageRecievedEventArgs.cs" />
-    <Compile Include="RawMessageRecievedEventArgs.cs" />
+    <Compile Include="Events\LoggedInEventArgs.cs" />
+    <Compile Include="Events\MessageRecievedEventArgs.cs" />
+    <Compile Include="Events\RawMessageRecievedEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TimeoutTimer.cs" />
     <Compile Include="TwitchChatConstants.cs" />

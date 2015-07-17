@@ -6,9 +6,21 @@ using System.Threading.Tasks;
 
 namespace TwixelChat
 {
+    /// <summary>
+    /// Class representing a chat emote
+    /// </summary>
     public class ChatEmote
     {
+        /// <summary>
+        /// The chat emote ID
+        /// </summary>
         public long Id { get; private set; }
+
+        /// <summary>
+        /// The list of locations the emote appears.
+        /// The first long is the index of the first character.
+        /// The second long is the index of the last character.
+        /// </summary>
         public List<Tuple<long, long>> Positions { get; private set; }
 
         private ChatEmote(string emoteSection)
@@ -26,6 +38,11 @@ namespace TwixelChat
             }
         }
 
+        /// <summary>
+        /// Parse an emotes section
+        /// </summary>
+        /// <param name="section">The emotes section</param>
+        /// <returns>A list of emotes</returns>
         public static List<ChatEmote> ParseEmotes(string section)
         {
             List<ChatEmote> emotes = new List<ChatEmote>();

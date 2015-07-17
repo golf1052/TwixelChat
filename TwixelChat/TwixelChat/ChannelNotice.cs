@@ -1,13 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using TwixelChat.Helpers;
 
 namespace TwixelChat
 {
+    /// <summary>
+    /// Class representing a channel notice.
+    /// </summary>
     public class ChannelNotice
     {
+        /// <summary>
+        /// Message IDs
+        /// </summary>
         public enum MessageIds
         {
             None,
@@ -21,7 +24,14 @@ namespace TwixelChat
             HostOff
         }
 
+        /// <summary>
+        /// Channel notice message ID
+        /// </summary>
         public MessageIds MessageId { get; private set; }
+
+        /// <summary>
+        /// Channel notice message
+        /// </summary>
         public string Message { get; private set; }
 
         public ChannelNotice(string rawServerMessage)

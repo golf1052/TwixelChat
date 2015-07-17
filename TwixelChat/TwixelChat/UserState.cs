@@ -1,31 +1,82 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using TwixelChat.Helpers;
 
 namespace TwixelChat
 {
+    /// <summary>
+    /// Class representing a Twitch chat user state
+    /// </summary>
     public class UserState
     {
+        /// <summary>
+        /// Twitch user types
+        /// </summary>
         public enum UserTypes
         {
+            /// <summary>
+            /// Regular user
+            /// </summary>
             None,
+            /// <summary>
+            /// Channel mod
+            /// </summary>
             Mod,
+            /// <summary>
+            /// Global mod
+            /// </summary>
             GlobalMod,
+            /// <summary>
+            /// Twitch admin
+            /// </summary>
             Admin,
+            /// <summary>
+            /// Twitch staff
+            /// </summary>
             Staff
         }
 
+        /// <summary>
+        /// Username color.
+        /// Is null if user has not specified a color.
+        /// </summary>
         public string Color { get; private set; }
+
+        /// <summary>
+        /// Chat display name.
+        /// Is null if user has not specified a display name.
+        /// </summary>
         public string DisplayName { get; private set; }
+
+        /// <summary>
+        /// Emote sets available to this user
+        /// </summary>
         public List<long> EmoteSets { get; private set; }
+
+        /// <summary>
+        /// Is the user a subscriber to this channel
+        /// </summary>
         public bool Subscriber { get; private set; }
+
+        /// <summary>
+        /// Is the user a Turbo member
+        /// </summary>
         public bool Turbo { get; private set; }
+
+        /// <summary>
+        /// User type
+        /// </summary>
         public UserTypes UserType { get; private set; }
 
         protected Dictionary<string, string> Tags { get; private set; }
 
+        /// <summary>
+        /// Create a new UserState
+        /// </summary>
+        /// <param name="tagsSection">The tags section of the message</param>
+        /// <param name="userState">
+        /// True if this is a pure UserState.
+        /// False if this is a ChatUser.
+        /// </param>
         public UserState(string tagsSection, bool userState)
         {
             EmoteSets = null;
@@ -53,6 +104,7 @@ namespace TwixelChat
                 DisplayName = null;
             }
 
+            // ChatUsers don't have emote sets
             if (userState)
             {
                 if (!string.IsNullOrEmpty(Tags["emote-sets"]))

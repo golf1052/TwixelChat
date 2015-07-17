@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TwixelChat
+namespace TwixelChat.Events
 {
     public class LoggedInEventArgs : EventArgs
     {

@@ -1,13 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
-namespace TwixelChat
+namespace TwixelChat.Helpers
 {
+    /// <summary>
+    /// Contains a collection of helpful methods.
+    /// </summary>
     public class HelperMethods
     {
+        /// <summary>
+        /// Gets a dictionary of tags from a tags section
+        /// </summary>
+        /// <param name="tagsSection">The tags section</param>
+        /// <returns>A dictionary of tags</returns>
         public static Dictionary<string, string> GetTags(string tagsSection)
         {
             if (tagsSection.StartsWith("@"))
