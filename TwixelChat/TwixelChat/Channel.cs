@@ -99,6 +99,11 @@ namespace TwixelChat
         public string HostChannel { get; private set; }
 
         /// <summary>
+        /// The broadcasters language. Currently isn't used so this will always be null.
+        /// </summary>
+        public string BroadcasterLang { get; private set; }
+
+        /// <summary>
         /// Channel connection state change.
         /// </summary>
         public event EventHandler<ChannelConnectionEventArgs> ChannelConnectionStateChanged;
@@ -120,6 +125,7 @@ namespace TwixelChat
             R9KMode = false;
             HostMode = false;
             HostChannel = null;
+            BroadcasterLang = null;
         }
 
         /// <summary>
@@ -176,6 +182,29 @@ namespace TwixelChat
             channelEvent.SlowDuration = SlowDuration;
             channelEvent.HostChannel = HostChannel;
             Event(channelEvent, ChannelEventRecieved);
+        }
+
+        public void HandleRoomState(string rawServerMessage)
+        {
+            if (rawServerMessage.StartsWith("@"))
+            {
+                ChannelRoomState roomState = new ChannelRoomState(rawServerMessage);
+                BroadcasterLang = roomState.BroadcasterLang;
+                if (roomState.R9K.HasValue)
+                {
+                    R9KMode = roomState.R9K.Value;
+                }
+                if (roomState.SubsOnly.HasValue)
+                {
+                    SubMode = roomState.SubsOnly.Value;
+                }
+                if (roomState.Slow.HasValue)
+                {
+                    SlowMode = roomState.Slow.Value > 0;
+                    SlowDuration = roomState.Slow.Value;
+                }
+            }
+            // in the non tags case just ignore the room state...since we don't have tags
         }
 
         private void Event<T>(T e, EventHandler<T> h)

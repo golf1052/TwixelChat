@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Channel.cs" />
+    <Compile Include="ChannelRoomState.cs" />
     <Compile Include="Events\ChannelConnectionEventArgs.cs" />
     <Compile Include="Events\ChannelNoticeEvent.cs" />
     <Compile Include="ChannelNotice.cs" />

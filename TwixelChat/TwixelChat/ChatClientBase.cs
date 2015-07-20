@@ -91,10 +91,26 @@ namespace TwixelChat
         /// </summary>
         public event EventHandler LogInFailed;
 
+        private ConnectionStates connectionState;
         /// <summary>
         /// Server connection state.
         /// </summary>
-        public ConnectionStates ConnectionState { get; protected internal set; }
+        public ConnectionStates ConnectionState
+        {
+            get
+            {
+                return connectionState;
+            }
+            protected internal set
+            {
+                if (connectionState != value)
+                {
+                    connectionState = value;
+                    ConnectionStateChangedEvent(ConnectionState, ConnectionStateChanged);
+                }
+                connectionState = value;
+            }
+        }
         private LoggedInStates loggedInState;
 
         /// <summary>
@@ -205,12 +221,12 @@ namespace TwixelChat
             {
                 await EnableMembershipCapability();
             }
-            
+
             if (commands)
             {
                 await EnableCommandsCapability();
             }
-            
+
             if (tags)
             {
                 await EnableTagsCapability();
@@ -407,7 +423,9 @@ namespace TwixelChat
                 }
                 else if (splitSpaces[1] == "ROOMSTATE")
                 {
-                    // handle room state stuff...LATER
+                    // handle room state stuff
+                    // will probably merge channel notice and roomstate...
+                    Channel.HandleRoomState(rawServerMessage);
                 }
                 else
                 {
@@ -460,6 +478,13 @@ namespace TwixelChat
             LoggedInEventArgs loggedInEvent = new LoggedInEventArgs();
             loggedInEvent.State = state;
             Event(loggedInEvent, handler);
+        }
+
+        void ConnectionStateChangedEvent(ConnectionStates state, EventHandler<ConnectionEventArgs> handler)
+        {
+            ConnectionEventArgs connectionEvent = new ConnectionEventArgs();
+            connectionEvent.State = state;
+            Event(connectionEvent, handler);
         }
 
         protected virtual void Event<T>(T e, EventHandler<T> h)
