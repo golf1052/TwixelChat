@@ -78,5 +78,15 @@ namespace TwixelChat.Tests
                 }
             }
         }
+
+        [Fact]
+        public async void NoTagsTest()
+        {
+            string message = ":twitchnotify!twitchnotify@twitchnotify.tmi.twitch.tv PRIVMSG #imaqtpie :fe4rl3s5 subscribed for 7 months in a row!";
+            chatClient = new TestChatClient(message);
+            await chatClient.Connect("twixeltest", "");
+            await Task.Delay(100);
+            Assert.True(true);
+        }
     }
 }

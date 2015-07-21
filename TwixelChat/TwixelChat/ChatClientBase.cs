@@ -149,6 +149,11 @@ namespace TwixelChat
         public Channel Channel { get; protected internal set; }
 
         /// <summary>
+        /// The Twitch username of the connected user
+        /// </summary>
+        public string Name { get; protected internal set; }
+
+        /// <summary>
         /// Is the membership state capability enabled
         /// </summary>
         public bool MembershipCapabilityEnabled { get; protected internal set; }
@@ -172,6 +177,7 @@ namespace TwixelChat
         private int delayTime = 100;
 
         private bool loginFailed;
+        private bool initatedPart;
 
         public ChatClientBase()
         {
@@ -181,6 +187,7 @@ namespace TwixelChat
             TimeOutTime = TimeSpan.FromMilliseconds(DefaultTimeOutTime);
 
             loginFailed = false;
+            initatedPart = false;
         }
 
         /// <summary>
@@ -217,6 +224,7 @@ namespace TwixelChat
         {
             await SendRawMessage("PASS oauth:" + accessToken);
             await SendRawMessage("NICK " + name);
+            Name = name;
             if (membership)
             {
                 await EnableMembershipCapability();
@@ -323,6 +331,7 @@ namespace TwixelChat
         /// <returns></returns>
         public async Task JoinChannel(string channel)
         {
+            initatedPart = false;
             Channel.ChannelName = channel;
             await SendRawMessage("JOIN #" + channel);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Not in channel.");
@@ -342,6 +351,7 @@ namespace TwixelChat
         /// <returns></returns>
         public async Task LeaveChannel()
         {
+            initatedPart = true;
             await SendRawMessage("PART #" + Channel.ChannelName);
             TimeoutTimer timer = CreateDefaultTimer("Did not receive channel connection confirmation. Might still be in channel.");
             while (Channel.ChannelState != Channel.ChannelStates.NotInChannel)
@@ -368,7 +378,7 @@ namespace TwixelChat
         /// <returns></returns>
         public async Task SendMessage(string message)
         {
-            await Writer.WriteLineAsync("PRIVMSG #" + Channel + " :" + message);
+            await Writer.WriteLineAsync("PRIVMSG #" + Channel.ChannelName + " :" + message);
         }
 
         protected async Task ReadFromStream(CancellationToken cancellationToken)
@@ -446,15 +456,24 @@ namespace TwixelChat
                     RawMessageEvent(rawMessage, RawMessageRecieved);
                 }
 
-                HandleReplyNumber(rawServerMessage, host, replyNumber, rawMessage);
+                MessageType messageType = HandleReplyNumber(rawServerMessage, host, replyNumber, rawMessage);
+                if (messageType == MessageType.PrivMsg)
+                {
+                    ChatMessage message = new ChatMessage(rawServerMessage);
+                    MessageEvent(message, MessageRecieved);
+                }
+                else if (messageType == MessageType.Notice)
+                {
+                    Channel.HandleNotice(new ChannelNotice(rawServerMessage));
+                }
             }
             else
             {
                 // ping pong part
-                if (rawServerMessage.StartsWith("PART"))
-                {
-                    Channel.ChannelState = Channel.ChannelStates.NotInChannel;
-                }
+                //if (rawServerMessage.StartsWith("PART"))
+                //{
+                //    Channel.ChannelState = Channel.ChannelStates.NotInChannel;
+                //}
             }
         }
 
@@ -598,6 +617,18 @@ namespace TwixelChat
             else if (replyNumber == "PART")
             {
                 // can handle parts here
+                // pulling out the username here,
+                // there's a ton of duplicate code in this library
+                string username = host.Split('!')[0];
+                if (initatedPart && username == Name)
+                {
+                    initatedPart = false;
+                    Channel.ChannelState = TwixelChat.Channel.ChannelStates.NotInChannel;
+                }
+                else
+                {
+                    // some other user left the channel
+                }
                 return MessageType.Other;
             }
             else if (replyNumber == "MODE")
@@ -607,11 +638,11 @@ namespace TwixelChat
                     string[] split = raw.Split(' ');
                     if (split[split.Length - 2] == "+o")
                     {
-                        Channel.Mods.Add(split[split.Length - 1]);
+                        Channel.ElevatedUsers.Add(split[split.Length - 1]);
                     }
                     else if (split[split.Length - 2] == "-o")
                     {
-                        Channel.Mods.Remove(split[split.Length - 1]);
+                        Channel.ElevatedUsers.Remove(split[split.Length - 1]);
                     }
                 }
                 return MessageType.Other;

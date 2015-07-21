@@ -57,10 +57,11 @@ namespace TwixelChat
         public UserState ChannelUserState { get; internal set; }
 
         /// <summary>
-        /// List of mods in the channel.
+        /// List of elevated users in the channel.
+        /// Not all elevated users are mods in the channel.
         /// May not be correct due to heavy Twitch chat load.
         /// </summary>
-        public List<string> Mods { get; internal set; }
+        public List<string> ElevatedUsers { get; internal set; }
 
         /// <summary>
         /// Is the channel in sub only mode.
@@ -118,7 +119,7 @@ namespace TwixelChat
             ChannelState = ChannelStates.NotInChannel;
             ChannelName = null;
             ChannelUserState = null;
-            Mods = new List<string>();
+            ElevatedUsers = new List<string>();
             SubMode = false;
             SlowMode = false;
             SlowDuration = 0;
@@ -136,8 +137,42 @@ namespace TwixelChat
         {
             if (notice.MessageId == ChannelNotice.MessageIds.None)
             {
-                // custom parsing waaat
-                // might not exist actually
+                if (notice.Message == "This room is now in subscribers-only mode.")
+                {
+                    SubMode = true;
+                }
+                else if (notice.Message == "This room is no longer in subscribers-only mode.")
+                {
+                    SubMode = false;
+                }
+                else if (notice.Message.StartsWith("This room is now in slow mode."))
+                {
+                    SlowMode = true;
+                    SlowDuration = long.Parse(notice.Message.Split(' ')[12]);
+                }
+                else if (notice.Message == "This room is no longer in slow mode.")
+                {
+                    SlowMode = false;
+                    SlowDuration = 0;
+                }
+                else if (notice.Message == "This room is now in r9k mode.")
+                {
+                    R9KMode = true;
+                }
+                else if (notice.Message == "This room is no longer in r9k mode.")
+                {
+                    R9KMode = false;
+                }
+                else if (notice.Message.StartsWith("Now hosting"))
+                {
+                    HostMode = true;
+                    HostChannel = notice.Message.Split(' ')[2];
+                }
+                else if (notice.Message == "Exited host mode.")
+                {
+                    HostMode = false;
+                    HostChannel = null;
+                }
             }
             else if (notice.MessageId == ChannelNotice.MessageIds.SubsOn)
             {

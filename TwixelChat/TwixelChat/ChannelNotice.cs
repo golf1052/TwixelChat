@@ -83,10 +83,14 @@ namespace TwixelChat
                     }
                 }
 
-                rest = rawServerMessage.Substring(splitIndex + 1);
+                rest = rawServerMessage.Substring(splitIndex + 2);
             }
 
-            Message = rest.Substring(1).Substring(rest.IndexOf(':') + 1);
+            if (rest.StartsWith(":"))
+            {
+                rest = rest.Substring(1);
+            }
+            Message = rest.Substring(1).Substring(rest.IndexOf(':'));
         }
     }
 }
