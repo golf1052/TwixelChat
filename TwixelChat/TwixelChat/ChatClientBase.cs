@@ -86,11 +86,6 @@ namespace TwixelChat
         /// </summary>
         public event EventHandler<LoggedInEventArgs> LoggedInStateChanged;
 
-        /// <summary>
-        /// Log in attempt has failed.
-        /// </summary>
-        public event EventHandler LogInFailed;
-
         private ConnectionStates connectionState;
         /// <summary>
         /// Server connection state.
