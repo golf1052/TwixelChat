@@ -32,12 +32,10 @@ namespace TwixelChat
         /// </summary>
         public int? Slow { get; private set; }
 
-        public ChannelRoomState(string rawServerMessage)
+        public ChannelRoomState(string rawServerMessage, string tagsSection)
         {
-            if (rawServerMessage.StartsWith("@"))
+            if (!string.IsNullOrEmpty(tagsSection))
             {
-                int splitIndex = rawServerMessage.IndexOf(' ');
-                string tagsSection = rawServerMessage.Substring(0, splitIndex);
                 Dictionary<string, string> tags = HelperMethods.GetTags(tagsSection);
                 if (tags.ContainsKey("broadcaster-lang"))
                 {

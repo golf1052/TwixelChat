@@ -399,76 +399,175 @@ namespace TwixelChat
             if (rawServerMessage.StartsWith("PING"))
             {
                 await SendRawMessage("PONG " + TwitchChatConstants.TwitchHost);
-                Debug.WriteLine("Sent pong");
                 return;
             }
 
             int firstSpace = rawServerMessage.IndexOf(' ');
-            string rest = rawServerMessage.Substring(firstSpace + 1);
+            string tagsSection = null;
+            string rawServerMessage_noTags = rawServerMessage;
 
             if (rawServerMessage.StartsWith("@"))
             {
-                string[] splitSpaces = rest.Split(' ');
+                tagsSection = rawServerMessage.Substring(0, firstSpace);
+                rawServerMessage_noTags = rawServerMessage.Substring(firstSpace + 1);
+            }
 
-                if (splitSpaces[1] == "PRIVMSG")
+            int spacePastHost = rawServerMessage_noTags.IndexOf(' ');
+            string textPastHost = rawServerMessage_noTags.Substring(spacePastHost + 1);
+            int secondSpace = textPastHost.IndexOf(' ');
+            string host = rawServerMessage_noTags.Substring(1, spacePastHost - 1);
+            string replyNumber = textPastHost.Substring(0, secondSpace);
+            int secondColon = rawServerMessage_noTags.IndexOf(':', 1);
+            string rawMessage = null;
+
+            if (secondColon != -1)
+            {
+                rawMessage = rawServerMessage.Substring(secondColon + 1);
+                RawMessageEvent(rawMessage, RawMessageRecieved);
+            }
+
+            // Handle Reply Number
+            if (replyNumber == "001")
+            {
+                // Welcome
+            }
+            else if (replyNumber == "002")
+            {
+                // Host
+            }
+            else if (replyNumber == "003")
+            {
+                // Server is new
+            }
+            else if (replyNumber == "004")
+            {
+                // Mystery dash
+            }
+            else if (replyNumber == "353")
+            {
+                // RPL_NAMREPLY
+                // Reply: Name reply
+            }
+            else if (replyNumber == "366")
+            {
+                // RPL_ENDOFNAMES
+                // Reply: End of /NAMES list
+                Channel.ChannelState = Channel.ChannelStates.InChannel;
+            }
+            else if (replyNumber == "372")
+            {
+                // RPL_MOTD
+                // Reply: Message of the day message
+            }
+            else if (replyNumber == "375")
+            {
+                // RPL_MOTDSTART
+                // Reply: Message of the day start
+            }
+            else if (replyNumber == "376")
+            {
+                // RPL_ENDOFMOTD
+                // Reply: End of message of the day
+                LoggedInState = LoggedInStates.LoggedIn;
+            }
+            else if (replyNumber == "CAP")
+            {
+                string[] split = rawServerMessage_noTags.Split(' ');
+                if (split.Length >= 5)
                 {
-                    ChatMessage message = new ChatMessage(rawServerMessage);
-                    RawMessageEvent(message.Message, RawMessageRecieved);
-                    MessageEvent(message, MessageRecieved);
-                }
-                else if (splitSpaces[1] == "USERSTATE")
-                {
-                    string tagsSection = rawServerMessage.Substring(0, firstSpace);
-                    Channel.ChannelUserState = new UserState(tagsSection, true);
-                }
-                else if (splitSpaces[1] == "NOTICE")
-                {
-                    // do notice stuff
-                    Channel.HandleNotice(new ChannelNotice(rawServerMessage));
-                }
-                else if (splitSpaces[1] == "ROOMSTATE")
-                {
-                    // handle room state stuff
-                    // will probably merge channel notice and roomstate...
-                    Channel.HandleRoomState(rawServerMessage);
+                    if (split[2] == "*" && split[3] == "ACK")
+                    {
+                        string enabledTag = split[4].Substring(1);
+                        if (enabledTag == TwitchChatConstants.MembershipCapability)
+                        {
+                            MembershipCapabilityEnabled = true;
+                        }
+                        else if (enabledTag == TwitchChatConstants.CommandsCapability)
+                        {
+                            CommandsCapabilityEnabled = true;
+                        }
+                        else if (enabledTag == TwitchChatConstants.TagsCapability)
+                        {
+                            TagsCapabilityEnabled = true;
+                        }
+                    }
                 }
                 else
                 {
                     // some kind of error?
-                    Debug.WriteLine("¯\\_(ツ)_/¯");
+                    Debug.WriteLine("Something is wrong with CAPs");
                 }
             }
-            else if (rawServerMessage.StartsWith(":"))
+            else if (replyNumber == "JOIN")
             {
-                int secondSpace = rest.IndexOf(' ');
-                string host = rawServerMessage.Substring(1, firstSpace - 1);
-                string replyNumber = rest.Substring(0, secondSpace);
-                int secondColon = rawServerMessage.IndexOf(':', 1);
-                string rawMessage = null;
-                if (secondColon != -1)
+                // we handle OUR channel join with 366
+                // can handle other people joins here
+            }
+            else if (replyNumber == "PART")
+            {
+                // can handle parts here
+                // pulling out the username here,
+                // there's a ton of duplicate code in this library
+                string username = host.Split('!')[0];
+                if (initatedPart && username == Name)
                 {
-                    rawMessage = rawServerMessage.Substring(secondColon + 1);
-                    RawMessageEvent(rawMessage, RawMessageRecieved);
+                    initatedPart = false;
+                    Channel.ChannelState = TwixelChat.Channel.ChannelStates.NotInChannel;
                 }
-
-                MessageType messageType = HandleReplyNumber(rawServerMessage, host, replyNumber, rawMessage);
-                if (messageType == MessageType.PrivMsg)
+                else
                 {
-                    ChatMessage message = new ChatMessage(rawServerMessage);
-                    MessageEvent(message, MessageRecieved);
+                    // some other user left the channel
                 }
-                else if (messageType == MessageType.Notice)
+            }
+            else if (replyNumber == "MODE")
+            {
+                if (host == "jtv")
                 {
-                    Channel.HandleNotice(new ChannelNotice(rawServerMessage));
+                    string[] split = rawServerMessage_noTags.Split(' ');
+                    if (split[split.Length - 2] == "+o")
+                    {
+                        Channel.ElevatedUsers.Add(split[split.Length - 1]);
+                    }
+                    else if (split[split.Length - 2] == "-o")
+                    {
+                        Channel.ElevatedUsers.Remove(split[split.Length - 1]);
+                    }
                 }
+            }
+            else if (replyNumber == "CLEARCHAT")
+            {
+                // user was muted/banned
+            }
+            else if (replyNumber == "PRIVMSG")
+            {
+                ChatMessage message = new ChatMessage(rawServerMessage_noTags, tagsSection);
+                MessageEvent(message, MessageRecieved);
+            }
+            else if (replyNumber == "USERSTATE")
+            {
+                if (!string.IsNullOrEmpty(tagsSection))
+                {
+                    Channel.ChannelUserState = new UserState(tagsSection, true);
+                }
+            }
+            else if (replyNumber == "NOTICE")
+            {
+                if (!string.IsNullOrEmpty(rawMessage) && rawMessage == TwitchChatConstants.LoginUnsuccessful)
+                {
+                    loginFailed = true;
+                }
+                else
+                {
+                    Channel.HandleNotice(new ChannelNotice(rawServerMessage_noTags, tagsSection));
+                }
+            }
+            else if (replyNumber == "ROOMSTATE")
+            {
+                Channel.HandleRoomState(rawServerMessage_noTags, tagsSection);
             }
             else
             {
-                // ping pong part
-                //if (rawServerMessage.StartsWith("PART"))
-                //{
-                //    Channel.ChannelState = Channel.ChannelStates.NotInChannel;
-                //}
+                // welp, no idea what this replyNumber is
             }
         }
 
@@ -516,152 +615,6 @@ namespace TwixelChat
             if (handler != null)
             {
                 handler(this, e);
-            }
-        }
-
-        MessageType HandleReplyNumber(string raw, string host,
-            string replyNumber, string message)
-        {
-            if (replyNumber == "001")
-            {
-                // Welcome
-                return MessageType.Number;
-            }
-            else if (replyNumber == "002")
-            {
-                // Host
-                return MessageType.Number;
-            }
-            else if (replyNumber == "003")
-            {
-                // Server is new
-                return MessageType.Number;
-            }
-            else if (replyNumber == "004")
-            {
-                // Mystery dash
-                return MessageType.Number;
-            }
-            else if (replyNumber == "353")
-            {
-                // RPL_NAMREPLY
-                // Reply: Name reply
-                return MessageType.Number;
-            }
-            else if (replyNumber == "366")
-            {
-                // RPL_ENDOFNAMES
-                // Reply: End of /NAMES list
-                Channel.ChannelState = Channel.ChannelStates.InChannel;
-                return MessageType.Number;
-            }
-            else if (replyNumber == "372")
-            {
-                // RPL_MOTD
-                // Reply: Message of the day message
-                return MessageType.Number;
-            }
-            else if (replyNumber == "375")
-            {
-                // RPL_MOTDSTART
-                // Reply: Message of the day start
-                return MessageType.Number;
-            }
-            else if (replyNumber == "376")
-            {
-                // RPL_ENDOFMOTD
-                // Reply: End of message of the day
-                LoggedInState = LoggedInStates.LoggedIn;
-                return MessageType.Number;
-            }
-            else if (replyNumber == "CAP")
-            {
-                string[] split = raw.Split(' ');
-                if (split.Length >= 5)
-                {
-                    if (split[2] == "*" && split[3] == "ACK")
-                    {
-                        string enabledTag = split[4].Substring(1);
-                        if (enabledTag == TwitchChatConstants.MembershipCapability)
-                        {
-                            MembershipCapabilityEnabled = true;
-                        }
-                        else if (enabledTag == TwitchChatConstants.CommandsCapability)
-                        {
-                            CommandsCapabilityEnabled = true;
-                        }
-                        else if (enabledTag == TwitchChatConstants.TagsCapability)
-                        {
-                            TagsCapabilityEnabled = true;
-                        }
-                    }
-                }
-                else
-                {
-                    // some kind of error?
-                    Debug.WriteLine("Something is wrong with CAPs");
-                }
-                return MessageType.Other;
-            }
-            else if (replyNumber == "JOIN")
-            {
-                // we handle OUR channel join with 366
-                // can handle other people joins here
-                return MessageType.Other;
-            }
-            else if (replyNumber == "PART")
-            {
-                // can handle parts here
-                // pulling out the username here,
-                // there's a ton of duplicate code in this library
-                string username = host.Split('!')[0];
-                if (initatedPart && username == Name)
-                {
-                    initatedPart = false;
-                    Channel.ChannelState = TwixelChat.Channel.ChannelStates.NotInChannel;
-                }
-                else
-                {
-                    // some other user left the channel
-                }
-                return MessageType.Other;
-            }
-            else if (replyNumber == "MODE")
-            {
-                if (host == "jtv")
-                {
-                    string[] split = raw.Split(' ');
-                    if (split[split.Length - 2] == "+o")
-                    {
-                        Channel.ElevatedUsers.Add(split[split.Length - 1]);
-                    }
-                    else if (split[split.Length - 2] == "-o")
-                    {
-                        Channel.ElevatedUsers.Remove(split[split.Length - 1]);
-                    }
-                }
-                return MessageType.Other;
-            }
-            else if (replyNumber == "NOTICE")
-            {
-                if (!string.IsNullOrEmpty(message) && message == TwitchChatConstants.LoginUnsuccessful)
-                {
-                    loginFailed = true;
-                }
-                return MessageType.Notice;
-            }
-            else if (replyNumber == "CLEARCHAT")
-            {
-                // user was muted/banned
-                return MessageType.Other;
-            }
-            else if (replyNumber == "PRIVMSG")
-            {
-                return MessageType.PrivMsg;
-            }
-            else
-            {
-                return MessageType.Other;
             }
         }
 

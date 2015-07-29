@@ -33,27 +33,17 @@ namespace TwixelChat
         /// </summary>
         public List<ChatEmote> Emotes { get; private set; }
 
-        public ChatMessage(string rawServerMessage)
+        public ChatMessage(string rawServerMessage, string tagsSection)
         {
             Emotes = null;
-            if (rawServerMessage.StartsWith("@"))
+            User = null;
+            if (!string.IsNullOrEmpty(tagsSection))
             {
-                // contains tags
                 Emotes = new List<ChatEmote>();
-                int splitIndex = rawServerMessage.IndexOf(' ');
-                
-                string tagsSection = rawServerMessage.Substring(0, splitIndex);
                 User = new ChatUser(tagsSection);
                 Emotes = User.Emotes;
-                string rest = rawServerMessage.Substring(splitIndex + 1);
-                ParseMessage(rest);
             }
-            else
-            {
-                // doesn't contain tags
-                User = null;
-                ParseMessage(rawServerMessage);
-            }
+            ParseMessage(rawServerMessage);
         }
 
         private void ParseMessage(string message)

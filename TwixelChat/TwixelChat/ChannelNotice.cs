@@ -34,17 +34,12 @@ namespace TwixelChat
         /// </summary>
         public string Message { get; private set; }
 
-        public ChannelNotice(string rawServerMessage)
+        public ChannelNotice(string rawServerMessage, string tagsSection)
         {
             MessageId = MessageIds.None;
             string rest = rawServerMessage;
-
-            if (rawServerMessage.StartsWith("@"))
+            if (!string.IsNullOrEmpty(tagsSection))
             {
-                int splitIndex = rawServerMessage.IndexOf(' ');
-
-                string tagsSection = rawServerMessage.Substring(0, splitIndex);
-
                 Dictionary<string, string> tags = HelperMethods.GetTags(tagsSection);
 
                 if (!string.IsNullOrEmpty(tags["msg-id"]))
@@ -82,15 +77,14 @@ namespace TwixelChat
                         MessageId = MessageIds.HostOff;
                     }
                 }
-
-                rest = rawServerMessage.Substring(splitIndex + 2);
             }
 
             if (rest.StartsWith(":"))
             {
                 rest = rest.Substring(1);
             }
-            Message = rest.Substring(1).Substring(rest.IndexOf(':'));
+            // rest.Substring(1).Substring(rest.IndexOf(':')); also works IDK why
+            Message = rest.Substring(rest.IndexOf(':')).Substring(1);
         }
     }
 }

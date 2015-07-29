@@ -219,11 +219,11 @@ namespace TwixelChat
             Event(channelEvent, ChannelEventRecieved);
         }
 
-        public void HandleRoomState(string rawServerMessage)
+        public void HandleRoomState(string rawServerMessage, string tagsSection)
         {
             if (rawServerMessage.StartsWith("@"))
             {
-                ChannelRoomState roomState = new ChannelRoomState(rawServerMessage);
+                ChannelRoomState roomState = new ChannelRoomState(rawServerMessage, tagsSection);
                 BroadcasterLang = roomState.BroadcasterLang;
                 if (roomState.R9K.HasValue)
                 {
