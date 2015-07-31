@@ -171,6 +171,9 @@ namespace TwixelChat
         private bool loginFailed;
         private bool initatedPart;
 
+        private const int messagesPer30Seconds = 20;
+        private static MessageRequest messageRequester;
+
         public ChatClientBase()
         {
             this.ConnectionState = ConnectionStates.Disconnected;
@@ -180,6 +183,8 @@ namespace TwixelChat
 
             loginFailed = false;
             initatedPart = false;
+
+            messageRequester = new MessageRequest(messagesPer30Seconds);
         }
 
         /// <summary>
@@ -370,6 +375,7 @@ namespace TwixelChat
         /// <returns></returns>
         public async Task SendRawMessage(string message)
         {
+            await GetPermission();
             await Writer.WriteLineAsync(message);
         }
 
@@ -380,6 +386,7 @@ namespace TwixelChat
         /// <returns></returns>
         public async Task SendMessage(string message)
         {
+            await GetPermission();
             await Writer.WriteLineAsync("PRIVMSG #" + Channel.ChannelName + " :" + message);
         }
 
@@ -576,6 +583,42 @@ namespace TwixelChat
             {
                 // welp, no idea what this replyNumber is
             }
+        }
+
+        internal static async Task GetPermission()
+        {
+            await messageRequester.semaphore.WaitAsync();
+            {
+                if (messageRequester.lastRequest == null)
+                {
+                    messageRequester.lastRequest = DateTime.UtcNow;
+                    messageRequester.availableMessages--;
+                    messageRequester.semaphore.Release();
+                    return;
+                }
+                else
+                {
+                    DateTime requestTime = DateTime.UtcNow;
+                    TimeSpan timeSinceLastRequest = requestTime - messageRequester.lastRequest.Value;
+                    if (timeSinceLastRequest > TimeSpan.FromSeconds(30))
+                    {
+                        messageRequester.availableMessages = messagesPer30Seconds;
+                        messageRequester.lastRequest = DateTime.UtcNow;
+                        Debug.WriteLine("reset limit");
+                    }
+                    if (messageRequester.availableMessages == 0)
+                    {
+                        TimeSpan delayTime = TimeSpan.FromSeconds(35) - timeSinceLastRequest;
+                        Debug.WriteLine("ran into limit. waiting " + delayTime.ToString());
+                        await Task.Delay(delayTime);
+                        messageRequester.lastRequest = DateTime.UtcNow;
+                        messageRequester.availableMessages = messagesPer30Seconds;
+                        Debug.WriteLine("ok we good");
+                    }
+                    messageRequester.availableMessages--;
+                }
+            }
+            messageRequester.semaphore.Release();
         }
 
         void MessageEvent(ChatMessage message, EventHandler<MessageRecievedEventArgs> handler)

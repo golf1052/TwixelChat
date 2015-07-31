@@ -27,10 +27,11 @@ namespace TwixelChat.Tests
             ConnectionState = ConnectionStates.Connected;
             Reader = new StreamReader(CreateStream(InputString, Encoding.UTF8), Encoding.UTF8);
             Writer = new StreamWriter(CreateStream(OutputString, Encoding.UTF8), Encoding.UTF8);
+            InternalConnect();
 
             readTaskCancellationSource = new CancellationTokenSource();
             readTaskCancellationToken = readTaskCancellationSource.Token;
-            readTask = Task.Factory.StartNew(() => ReadFromStream(readTaskCancellationToken), readTaskCancellationToken);
+            readTask = Task.Run(() => ReadFromStream(readTaskCancellationToken), readTaskCancellationToken);
         }
 
         public override void Disconnect()
@@ -39,6 +40,10 @@ namespace TwixelChat.Tests
             Task.WaitAny(new Task[] { readTask }, TimeSpan.FromMilliseconds(500));
             LoggedInState = LoggedInStates.LoggedOut;
             ConnectionState = ConnectionStates.Disconnected;
+            Reader.Dispose();
+            Writer.Dispose();
+            InternalDisconnect();
+            Name = null;
         }
 
         private MemoryStream CreateStream(string s, Encoding encoding)

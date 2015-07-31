@@ -44,6 +44,7 @@
     <Compile Include="ChannelNotice.cs" />
     <Compile Include="Events\ConnectionEventArgs.cs" />
     <Compile Include="HelperMethods.cs" />
+    <Compile Include="MessageRequest.cs" />
     <Compile Include="UserState.cs" />
     <Compile Include="ChatClientBase.cs" />
     <Compile Include="ChatEmote.cs" />

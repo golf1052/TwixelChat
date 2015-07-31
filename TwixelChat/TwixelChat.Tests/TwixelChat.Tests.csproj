@@ -39,6 +39,7 @@
   <ItemGroup>
     <Compile Include="ChatClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RateLimiterTests.cs" />
     <Compile Include="TestChatClient.cs" />
   </ItemGroup>
   <ItemGroup>
