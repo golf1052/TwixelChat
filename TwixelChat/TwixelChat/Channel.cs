@@ -116,6 +116,11 @@ namespace TwixelChat
 
         public Channel()
         {
+            Reset();
+        }
+
+        internal void Reset()
+        {
             ChannelState = ChannelStates.NotInChannel;
             ChannelName = null;
             ChannelUserState = null;

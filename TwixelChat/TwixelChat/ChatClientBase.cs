@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TwixelChat.Constants;
@@ -193,10 +190,20 @@ namespace TwixelChat
         /// <returns></returns>
         public abstract Task Connect(string name, string accessToken);
 
+        protected void InternalConnect()
+        {
+            Channel.Reset();
+        }
+
         /// <summary>
         /// Disconnect from the Twitch chat server
         /// </summary>
         public abstract void Disconnect();
+
+        protected void InternalDisconnect()
+        {
+            Channel.ChannelState = TwixelChat.Channel.ChannelStates.NotInChannel;
+        }
 
         /// <summary>
         /// Authenticate to the Twitch chat server, should run immediately

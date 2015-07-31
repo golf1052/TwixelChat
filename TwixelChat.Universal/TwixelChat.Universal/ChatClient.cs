@@ -39,10 +39,11 @@ namespace TwixelChat.Universal
             Reader = new StreamReader(client.InputStream.AsStreamForRead(), Encoding.UTF8);
             Writer = new StreamWriter(client.OutputStream.AsStreamForWrite(), utf8WithoutBOM);
             Writer.AutoFlush = true;
+            InternalConnect();
 
             readTaskCancellationSource = new CancellationTokenSource();
             readTaskCancellationToken = readTaskCancellationSource.Token;
-            readTask = Task.Factory.StartNew(() => ReadFromStream(readTaskCancellationToken));
+            readTask = Task.Run(() => ReadFromStream(readTaskCancellationToken));
             await Login(name, accessToken);
         }
 
@@ -53,6 +54,10 @@ namespace TwixelChat.Universal
             client.Dispose();
             LoggedInState = LoggedInStates.LoggedOut;
             ConnectionState = ConnectionStates.Disconnected;
+            Reader.Close();
+            Writer.Close();
+            InternalDisconnect();
+            name = null;
         }
     }
 }
