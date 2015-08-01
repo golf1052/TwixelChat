@@ -54,10 +54,10 @@ namespace TwixelChat.Universal
             client.Dispose();
             LoggedInState = LoggedInStates.LoggedOut;
             ConnectionState = ConnectionStates.Disconnected;
-            Reader.Close();
-            Writer.Close();
+            Reader.Dispose();
+            Writer.Dispose();
             InternalDisconnect();
-            name = null;
+            Name = null;
         }
     }
 }
