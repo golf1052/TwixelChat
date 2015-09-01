@@ -160,7 +160,7 @@ namespace TwixelChat
         /// </summary>
         public bool TagsCapabilityEnabled { get; protected internal set; }
 
-        private const long DefaultTimeOutTime = 5000;
+        private const long DefaultTimeOutTime = 30000;
 
         /// <summary>
         /// Time out time for waiting for server responses
