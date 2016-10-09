@@ -514,8 +514,13 @@ namespace TwixelChat
             }
             else if (replyNumber == "JOIN")
             {
-                // we handle OUR channel join with 366
+                // actually we need to handle our JOIN here as well now
                 // can handle other people joins here
+                string username = host.Split('!')[0];
+                if (username == Name)
+                {
+                    Channel.ChannelState = Channel.ChannelStates.InChannel;
+                }
             }
             else if (replyNumber == "PART")
             {

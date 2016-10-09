@@ -122,9 +122,39 @@ namespace TwixelChat
                 }
             }
 
-            Subscriber = int.Parse(Tags["subscriber"]) == 1;
+            if (Tags.ContainsKey("subscriber"))
+            {
+                Subscriber = int.Parse(Tags["subscriber"]) == 1;
+            }
+            else
+            {
+                Subscriber = false;
+            }
 
-            Turbo = int.Parse(Tags["turbo"]) == 1;
+            if (Tags.ContainsKey("turbo"))
+            {
+                Turbo = int.Parse(Tags["turbo"]) == 1;
+            }
+            else
+            {
+                Turbo = false;
+            }
+            
+            if (Tags.ContainsKey("badges"))
+            {
+                string[] badges = Tags["badges"].Split(',');
+                foreach (string badge in badges)
+                {
+                    if (badge.StartsWith("subscriber"))
+                    {
+                        Subscriber = true;
+                    }
+                    else if (badge.StartsWith("turbo"))
+                    {
+                        Turbo = true;
+                    }
+                }
+            }
 
             if (!string.IsNullOrEmpty(Tags["user-type"]))
             {
